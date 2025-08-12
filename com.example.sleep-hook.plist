@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key> <string>com.example.sleep-hook</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/m2p/src/code/keyboard/sleep-hook</string>
+  </array>
+  <key>RunAtLoad</key> <true/>
+  <key>KeepAlive</key> <true/>
+  <!-- 关键：限定在 GUI 会话加载，才能收到屏幕睡眠通知 -->
+  <key>LimitLoadToSessionType</key> <string>Aqua</string>
+
+  <key>StandardOutPath</key> <string>/tmp/sleep-hook.out.log</string>
+  <key>StandardErrorPath</key> <string>/tmp/sleep-hook.err.log</string>
+
+  <!-- 如指令 A 依赖 PATH，可在此显式设置 -->
+  <!--
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  -->
+</dict>
+</plist>
