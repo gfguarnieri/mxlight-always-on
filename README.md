@@ -1,5 +1,7 @@
 # MX Light Always On
 
+<img width="128" height="128" alt="128" src="https://github.com/user-attachments/assets/01407669-0c00-4ea7-b316-ede5f2a57ee5" />
+
 Keep your **Logitech MX Mechanical Mini** keyboard backlight always on via Bluetooth Low Energy on macOS.
 
 The app runs in the background with a **menu bar icon** (lightbulb) that allows you to configure settings and quit the application.
@@ -68,17 +70,22 @@ swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth -framework Cocoa
 ### First Time Setup
 
 1. Launch the app - you'll see a **lightbulb icon** (empty/outline) in the menu bar
-2. Click the icon and select **"Configure..."**
-3. Enter your keyboard's UUID and refresh interval:
+
+<img width="227" height="136" alt="image" src="https://github.com/user-attachments/assets/86bccaa2-f670-41f0-b84b-c3c3396aa2f9" />
+
+3. Click the icon and select **"Configure..."**
+4. Enter your keyboard's UUID and refresh interval:
+<img width="358" height="401" alt="image" src="https://github.com/user-attachments/assets/7cdf915d-a5f6-4820-bcfa-67afed716c11" />
+
    - **Device UUID**: The identifier you copied from LightBlue
    - **Refresh Interval**: How often to send the "keep light on" command (default: 6.5 seconds)
-4. Click **"OK"** to save
+5. Click **"OK"** to save
 
 Your settings are automatically saved and will be restored when you restart the app.
 
 ### Menu Bar Icon States
 
-- **Empty lightbulb**: Not configured
+- **Empty lightbulb**: Not configured4
 - **Filled lightbulb**: Configured and ready
 - **Checkmark** in menu: Successfully keeping light on
 - **X mark** in menu: Connection error
