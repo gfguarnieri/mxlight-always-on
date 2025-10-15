@@ -28,9 +28,15 @@ The app runs in the background with a **menu bar icon** (lightbulb) that allows 
 
 1. Download and open **LightBlue** from the Mac App Store
 2. Connect to your keyboard (look for "MX MCHNCL M" or "MX Mechanical")
-3. Copy the **Peripheral Identifier** at the top
+
+<img width="565" height="247" alt="image" src="https://github.com/user-attachments/assets/f4d39d3d-c4ae-4f74-84c9-1fb41fd7bf45" />
+
+4. Copy the **Peripheral Identifier** at the top
    - Example: `44B8F2E2-ED97-6227-6712-A41AC332C9D8`
-4. You'll need this UUID to configure the app
+
+<img width="520" height="165" alt="image" src="https://github.com/user-attachments/assets/ed1b139a-2611-4199-9ae3-c295303fbcdb" />
+
+5. You'll need this UUID to configure the app
 
 ## Installation
 
