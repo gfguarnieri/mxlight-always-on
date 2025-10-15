@@ -1,250 +1,228 @@
-# mxlight — Toggle Logitech MX Mechanical backlight (macOS, CoreBluetooth)
+# MX Light Always On
 
-> **English • 中文在下方**
+<img width="128" height="128" alt="128" src="https://github.com/user-attachments/assets/01407669-0c00-4ea7-b316-ede5f2a57ee5" />
 
-A tiny CLI for macOS that turns the **Logitech MX Mechanical / MX Mechanical Mini** backlight **ON/OFF** by writing to its private BLE characteristic via **CoreBluetooth**.
+Keep your **Logitech MX Mechanical Mini** keyboard backlight always on via Bluetooth Low Energy on macOS.
 
-**Repository contains:** a single Swift source file `mxlight.swift` (provided in the issue/README context) and this README.
+The app runs in the background with a **menu bar icon** (lightbulb) that allows you to configure settings and quit the application.
 
----
+## Features
 
-## Overview (EN)
+- Keep keyboard backlight always on
+- Automatically saves your configuration (UUID and refresh interval)
+- Visual feedback with menu bar icon (filled when configured, empty when not)
+- Configurable refresh interval (default: 6.5 seconds)
+- Automatically reconnects after configuration changes
+- Easy installation with automated script
 
-This command-line tool connects to your Logitech MX Mechanical / MX Mechanical Mini over Bluetooth Low Energy and writes a short command to a private characteristic to toggle the keyboard backlight.
+## Prerequisites
 
-- **Service**: `00010000-0000-1000-8000-011F2000046D`
-- **Characteristic (write + notify)**: `00010001-0000-1000-8000-011F2000046D`
-
-**Payloads**
-
-- **OFF**: `0b1e000000000000`
-- **ON** : `0b1e010000000000`
-
-The app accepts `--on` or `--off`. Optionally pass `--uuid <device-UUID>` to connect even when the keyboard isn’t advertising.
-
-> ⚠️ Payloads are firmware-specific and were verified against **MX Mechanical Mini (Bluetooth)**. Other models/firmware may differ; capture frames with a BLE logger if needed.
-
-### Features
-- Works offline (no Logitech software required).
-- Uses CoreBluetooth, no kernel extensions.
-- `--uuid` lets you connect even if the device isn’t advertising (using `retrievePeripherals`).
-- Prints notification frames (if your firmware echoes them).
-
-### Supported / Tested
-- Logitech **MX Mechanical Mini (Bluetooth)** on macOS.
-
----
-
-## Prerequisites (EN)
-
-- macOS with **Xcode Command Line Tools**  
+- macOS 10.15 or later
+- Xcode Command Line Tools:
   ```bash
   xcode-select --install
   ```
-- First run will ask for **Bluetooth permission**.
-- Optional: **LightBlue** (Mac App Store) to find your device UUID.
+- Your keyboard's UUID (find it using **LightBlue** from the Mac App Store)
 
----
+## Get Device UUID
 
-## Get your device UUID with LightBlue (EN)
+1. Download and open **LightBlue** from the Mac App Store
+2. Connect to your keyboard (look for "MX MCHNCL M" or "MX Mechanical")
+3. Copy the **Peripheral Identifier** at the top
+   - Example: `44B8F2E2-ED97-6227-6712-A41AC332C9D8`
+4. You'll need this UUID to configure the app
 
-1. Open **LightBlue** and connect to your keyboard (`MX MCHNCL M` / `MX Mechanical`).
-2. Copy the **Peripheral Identifier** (looks like `6D6299B8-F57F-04B3-7285-E0A5C0448F00`).
-3. You can now run `mxlight` with `--uuid <that-UUID>` to connect without advertising.
+## Installation
 
-> If you can’t get the UUID, you can omit `--uuid`. In that case the tool will **scan**, which requires the keyboard to be **advertising** (e.g., switch it to an empty slot so it starts advertising).
+### Quick Install (Recommended)
 
----
-
-## Build (EN)
-
-```bash
-swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth
-```
-
----
-
-## Run (EN)
+Run the automated installer:
 
 ```bash
-# Turn backlight OFF
-./mxlight --off --uuid 6D6299B8-F57F-04B3-7285-E0A5C0448F00
-
-# Turn backlight ON
-./mxlight --on  --uuid 6D6299B8-F57F-04B3-7285-E0A5C0448F00
+./install.sh
 ```
 
-Without `--uuid` (requires advertising):
+The installer will:
+1. Compile the application from source
+2. Create a proper macOS app bundle structure
+3. Generate the required `Info.plist` file
+4. Install to `~/Applications/MX Light.app`
+5. Remove quarantine attributes to allow the app to run
+6. Set proper permissions
+
+After installation completes, you can:
+- Open from Finder: Go to `Applications` folder (in your home directory) → Double-click `MX Light`
+- Open from Terminal: `open ~/Applications/MX\ Light.app`
+
+### Manual Build
+
+If you prefer to build manually:
+
 ```bash
-./mxlight --off
+swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth -framework Cocoa
+./mxlight
 ```
 
-### Expected output (EN)
+**Note:** Manual builds won't have the app bundle structure and may require additional permissions setup.
 
+## Configuration
+
+### First Time Setup
+
+1. Launch the app - you'll see a **lightbulb icon** (empty/outline) in the menu bar
+
+<img width="227" height="136" alt="image" src="https://github.com/user-attachments/assets/86bccaa2-f670-41f0-b84b-c3c3396aa2f9" />
+
+3. Click the icon and select **"Configure..."**
+4. Enter your keyboard's UUID and refresh interval:
+<img width="358" height="401" alt="image" src="https://github.com/user-attachments/assets/7cdf915d-a5f6-4820-bcfa-67afed716c11" />
+
+   - **Device UUID**: The identifier you copied from LightBlue
+   - **Refresh Interval**: How often to send the "keep light on" command (default: 6.5 seconds)
+5. Click **"OK"** to save
+
+Your settings are automatically saved and will be restored when you restart the app.
+
+### Menu Bar Icon States
+
+- **Empty lightbulb**: Not configured4
+- **Filled lightbulb**: Configured and ready
+- **Checkmark** in menu: Successfully keeping light on
+- **X mark** in menu: Connection error
+
+### Reconfiguring
+
+You can change settings anytime:
+1. Click the lightbulb icon
+2. Select **"Configure..."**
+3. Your current settings will be pre-filled
+4. Make changes and click **"OK"**
+
+The app will automatically reconnect with the new settings.
+
+## How It Works
+
+Once configured, the application:
+- Connects to your keyboard via Bluetooth using the UUID
+- Sends a "turn light ON" command immediately
+- Automatically resends the command at your specified interval
+- Keeps the backlight on even if the keyboard tries to auto-dim
+- Remembers your settings between app restarts
+- Runs quietly in the background (no Dock icon)
+
+### Refresh Interval Recommendations
+
+Choose the interval based on your keyboard's power source:
+
+- **6.5 seconds** (default): Recommended when running on **battery**
+  - Optimal balance between responsiveness and battery life
+  - Light stays consistently on without frequent dimming
+
+- **280 seconds** (approximately 4.7 minutes): Recommended when **plugged into power**
+  - Conserves Bluetooth bandwidth
+  - Reduces unnecessary communication overhead
+  - Still ensures light stays on without manual intervention
+
+**Other options:**
+- **3-5 seconds**: More responsive on battery, but higher battery usage
+- **10-60 seconds**: More battery-friendly, light may dim briefly before refreshing
+
+**Minimum:** 1.0 second
+
+## Command Line Usage
+
+You can also run with parameters (skips configuration dialog):
+
+```bash
+./mxlight --uuid 44B8F2E2-ED97-6227-6712-A41AC332C9D8 --interval 6.5 
 ```
-write 00010001-0000-1000-8000-011F2000046D 0b1e000000000000
-[notify] 0b1e000000000000000000000000000000
+
+## Auto-Start at Login (Optional)
+
+To launch the app automatically when you log in:
+
+1. Open **System Settings** → **General** → **Login Items**
+2. Click the **+** button under "Open at Login"
+3. Navigate to `~/Applications/` and select **MX Light**
+4. Done! The app will start automatically on login
+
+To remove auto-start, simply remove it from Login Items in System Settings.
+
+## Troubleshooting
+
+### App won't connect to keyboard
+
+- **Quit Logi Options+**: The official app may hold the Bluetooth connection
+- **Disconnect in Bluetooth settings**: Go to System Settings → Bluetooth → Disconnect keyboard, then reconnect
+- **Verify UUID**: Make sure you copied the correct UUID from LightBlue
+- **Check Bluetooth**: Ensure Bluetooth is enabled and the keyboard is paired
+
+### Permission issues
+
+- **Bluetooth permission**: Grant permission when prompted on first run
+- **App won't open**: Make sure Xcode Command Line Tools are installed
+- **"Damaged or incomplete" error**: Run `./install.sh` again - it removes quarantine attributes
+
+### Menu bar icon issues
+
+- **Icon not visible**: Check if app is running in Activity Monitor
+- **Empty lightbulb**: Click icon and select Configure... to set up your UUID
+- **X mark showing**: Check connection, try reconfiguring
+
+### General tips
+
+- The app needs to stay running to keep the light on
+- Quit the app by clicking the icon and selecting Quit
+- Logs are printed to Terminal if you run the app from command line
+
+## Uninstall
+
+### Using the uninstaller script:
+
+```bash
+./uninstall.sh
 ```
 
-> Notifications may vary by firmware; some devices echo an ACK, others are silent. A successful **write with response** is sufficient to toggle the light.
+### Manual removal:
 
----
+```bash
+rm -rf ~/Applications/MX\ Light.app
+```
 
-## How it works (EN)
+**Don't forget:** If you added the app to Login Items, remove it from System Settings.
 
-- The app uses **CoreBluetooth** to connect and discover the private Logitech service/characteristic.
-- It writes an 8‑byte payload to `00010001-...` with **response** enabled.
-- If notifications are enabled by the device, they are printed to stdout.
+## Technical Details
 
-**High-level flow:**
-1. Power on Bluetooth → retrieve by `--uuid` or scan for service `0x00010000`.
-2. Discover characteristic `0x00010001`.
-3. Enable notify (for logs) and write the ON/OFF payload.
-4. Wait ~1s for potential notify and exit.
+### What the installer does
 
----
+The `install.sh` script:
+1. Compiles Swift source code with optimization (`-O`)
+2. Creates proper macOS app bundle structure (`MX Light.app/Contents/MacOS/`)
+3. Generates `Info.plist` with:
+   - Bundle identifier: `com.mxlight.always-on`
+   - Bluetooth permission description
+   - LSUIElement flag (runs without Dock icon)
+4. Removes quarantine attribute (`xattr -cr`) to bypass Gatekeeper warnings
 
-## Troubleshooting (EN)
+### Security note
 
-- **Cannot connect / times out**  
-  - Quit **Logi Options+** (it may hold the BLE connection).  
-  - Temporarily **Disconnect** the keyboard in macOS Bluetooth and run the tool; or pass `--uuid`.
-- **Tool doesn’t find device without `--uuid`**  
-  - The keyboard must be **advertising**. Switch it to an unused slot to begin advertising, then run the tool.
-- **Different model/firmware**  
-  - Payloads may differ. Capture your ON/OFF frames using LightBlue (Log tab) or Apple PacketLogger, then substitute the payloads in `mxlight.swift`.
+Removing quarantine is **safe** because:
+- You're compiling from visible source code
+- The code is open-source and auditable
+- It's your own app, not downloaded from an unknown source
 
----
+For distribution, you'd need an Apple Developer account to code-sign the app.
 
-## Security & Permissions (EN)
+### Data storage
 
-- The app requests **Bluetooth** permission (first run).
-- No Accessibility or HID permissions are needed—this tool only talks to BLE.
+Configuration is stored in macOS UserDefaults:
+- Key: `com.mxlight.device.uuid` - Your keyboard's UUID
+- Key: `com.mxlight.refresh.interval` - Refresh interval in seconds
 
----
+## Acknowledgments
+
+Special thanks to [@rosickey](https://github.com/rosickey) for creating the original [mxlight](https://github.com/rosickey/mxlight) project, which serves as the foundation for this fork.
 
 ## License
 
-MIT (or choose another license you prefer).
-
----
-
-# 中文说明（ZH）
-
-## 概述
-
-`mxlight` 是一个在 macOS 上运行的命令行工具，通过 **CoreBluetooth** 连接到罗技 **MX Mechanical / MX Mechanical Mini（蓝牙版）**，向其私有特征写入命令实现**开/关背光**。
-
-- **服务**：`00010000-0000-1000-8000-011F2000046D`
-- **特征（写入 + 通知）**：`00010001-0000-1000-8000-011F2000046D`
-
-**载荷（Payload）**
-
-- **关灯**：`0b1e000000000000`
-- **开灯**：`0b1e010000000000`
-
-运行时使用 `--on` 或 `--off` 指定操作；可选 `--uuid <设备UUID>`，即使设备不在广播也能连接。
-
-> ⚠️ 上述报文基于 **MX Mechanical Mini（蓝牙版）** 实测。不同机型/固件可能不同，必要时请先抓包确认。
-
-### 特性
-- 无需官方软件、无需联网。
-- 纯 **CoreBluetooth**，无内核扩展。
-- 支持 `--uuid` 直连（无需广播）。
-
-### 已测试
-- 罗技 **MX Mechanical Mini（蓝牙）**。
-
----
-
-## 前置条件
-
-- macOS + **Xcode 命令行工具**  
-  ```bash
-  xcode-select --install
-  ```
-- 首次运行会请求 **蓝牙权限**。
-- 可选：**LightBlue**（Mac App Store）用于查看设备 UUID。
-
----
-
-## 用 LightBlue 获取设备 UUID
-
-1. 打开 **LightBlue**，连接键盘（“MX MCHNCL M” / “MX Mechanical”）。
-2. 复制顶部的 **Peripheral Identifier（UUID）**，例如 `6D6299B8-F57F-04B3-7285-E0A5C0448F00`。
-3. 运行本工具时加入 `--uuid <该UUID>`，即使设备不在广播也能连接。
-
-> 如果没有 UUID，也可以不加 `--uuid`，此时程序会**扫描**；但需要键盘处于**广播状态**（例如切换到空闲配对槽以开始广播）。
-
----
-
-## 编译
-
-```bash
-swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth
-```
-
----
-
-## 运行
-
-```bash
-# 关灯
-./mxlight --off --uuid 6D6299B8-F57F-04B3-7285-E0A5C0448F00
-
-# 开灯
-./mxlight --on  --uuid 6D6299B8-F57F-04B3-7285-E0A5C0448F00
-```
-
-省略 `--uuid`（需设备在广播）：
-```bash
-./mxlight --off
-```
-
-### 预期输出
-
-```
-write 00010001-0000-1000-8000-011F2000046D 0b1e000000000000
-[notify] 0b1e000000000000000000000000000000
-```
-
-> 是否回通知取决于固件；就算没有通知，只要 **write with response** 成功也能完成开/关。
-
----
-
-## 工作原理
-
-- 程序使用 **CoreBluetooth** 连接设备，发现并打开罗技的私有服务/特征。
-- 向 `00010001-...` 特征写入 8 字节载荷（带响应）。
-- 若固件会通知，则把通知以十六进制打印出来。
-
-**流程概览：**
-1. 蓝牙就绪 → 通过 `--uuid` 检索连接，或扫描服务 `0x00010000`；
-2. 发现特征 `0x00010001`；
-3. 启用通知（用于日志）并写入开/关载荷；
-4. 等待约 1 秒以接收可能的通知后退出。
-
----
-
-## 常见问题
-
-- **连不上/超时**  
-  - 退出 **Logi Options+**（可能占用连接）；  
-  - 在系统蓝牙里临时“断开”键盘后再运行；或使用 `--uuid` 直连。
-- **不加 `--uuid` 找不到设备**  
-  - 必须处于**广播**状态。把键盘切到空闲配对槽以开始广播，再运行工具。
-- **不同型号/固件**  
-  - 载荷可能不同。请用 LightBlue（Log 页）或 PacketLogger 抓“开/关灯”帧后替换 `mxlight.swift` 中的载荷。
-
----
-
-## 权限说明
-
-- 第一次运行会弹出**蓝牙**权限请求。  
-- 程序不需要辅助功能或 HID 权限——只通过 BLE 通信。
-
----
-
-## 许可
-
-MIT（或按你的需要替换成其他协议）。
+MIT
