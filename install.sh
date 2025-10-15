@@ -32,85 +32,59 @@ echo ""
 
 # Install to user Applications folder
 echo "Step 2: Installing application..."
-INSTALL_PATH="$HOME/Applications/mxlight.app/Contents/MacOS"
-mkdir -p "$INSTALL_PATH"
-cp mxlight "$INSTALL_PATH/"
-chmod +x "$INSTALL_PATH/mxlight"
-echo "✓ Installed to $INSTALL_PATH"
+APP_NAME="MX Light"
+APP_PATH="$HOME/Applications/$APP_NAME.app"
+CONTENTS_PATH="$APP_PATH/Contents"
+MACOS_PATH="$CONTENTS_PATH/MacOS"
+RESOURCES_PATH="$CONTENTS_PATH/Resources"
 
-echo ""
+# Create app bundle structure
+mkdir -p "$MACOS_PATH"
+mkdir -p "$RESOURCES_PATH"
 
-# Ask if user wants to set up LaunchAgent
-echo "Step 3: Auto-start configuration"
-echo ""
-read -p "Do you want to configure the app to start automatically at login? [y/N]: " setup_launchagent
+# Copy binary
+cp mxlight "$MACOS_PATH/$APP_NAME"
+chmod +x "$MACOS_PATH/$APP_NAME"
 
-if [[ $setup_launchagent =~ ^[Yy]$ ]]; then
-    echo ""
-    read -p "Enter your keyboard UUID: " keyboard_uuid
-
-    # Validate UUID format
-    if ! [[ $keyboard_uuid =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
-        echo "Warning: UUID format doesn't look valid, but continuing anyway..."
-    fi
-
-    read -p "Enter refresh interval in seconds [6.5]: " refresh_interval
-    refresh_interval=${refresh_interval:-6.5}
-
-    BINARY_PATH="$HOME/Applications/mxlight.app/Contents/MacOS/mxlight"
-
-    # Create LaunchAgent plist
-    PLIST_PATH="$HOME/Library/LaunchAgents/com.mxlight.always-on.plist"
-
-    cat > "$PLIST_PATH" << EOF
+# Create Info.plist
+cat > "$CONTENTS_PATH/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
- "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key> <string>com.mxlight.always-on</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>$BINARY_PATH</string>
-    <string>--uuid</string>
-    <string>$keyboard_uuid</string>
-    <string>--interval</string>
-    <string>$refresh_interval</string>
-  </array>
-  <key>RunAtLoad</key> <true/>
-  <key>KeepAlive</key> <true/>
-
-  <key>LimitLoadToSessionType</key> <string>Aqua</string>
-
-  <key>StandardOutPath</key> <string>/tmp/mxlight.out.log</string>
-  <key>StandardErrorPath</key> <string>/tmp/mxlight.err.log</string>
+    <key>CFBundleExecutable</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.mxlight.always-on</string>
+    <key>CFBundleName</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleDisplayName</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2025</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This app needs Bluetooth access to control your Logitech MX Mechanical Mini keyboard backlight.</string>
 </dict>
 </plist>
 EOF
 
-    echo "✓ LaunchAgent plist created at $PLIST_PATH"
-    echo ""
+echo "✓ Installed to $APP_PATH"
 
-    # Load the LaunchAgent
-    read -p "Do you want to start the service now? [Y/n]: " start_now
-    if [[ ! $start_now =~ ^[Nn]$ ]]; then
-        launchctl unload "$PLIST_PATH" 2>/dev/null || true
-        launchctl load "$PLIST_PATH"
-        echo "✓ Service started"
-        echo ""
-        echo "The app is now running in the background."
-        echo "Look for the lightbulb icon in your menu bar."
-    else
-        echo ""
-        echo "Service not started. You can start it later with:"
-        echo "  launchctl load $PLIST_PATH"
-    fi
-
-    echo ""
-    echo "Logs are available at:"
-    echo "  Output: /tmp/mxlight.out.log"
-    echo "  Errors: /tmp/mxlight.err.log"
-fi
+# Remove quarantine attribute
+echo ""
+echo "Removing quarantine attribute..."
+xattr -cr "$APP_PATH"
+echo "✓ Quarantine removed"
 
 echo ""
 echo "========================================="
@@ -118,17 +92,18 @@ echo "Installation Complete!"
 echo "========================================="
 echo ""
 
-if [[ $setup_launchagent =~ ^[Yy]$ ]]; then
-    echo "The app will start automatically at login."
-    echo ""
-    echo "To uninstall, run:"
-    echo "  launchctl unload $PLIST_PATH"
-    echo "  rm $PLIST_PATH"
-else
-    echo "You can run the app manually with:"
-    echo "  $BINARY_PATH"
-fi
-
+echo "The app has been installed to:"
+echo "  $HOME/Applications/MX Light.app"
+echo ""
+echo "To run the app:"
+echo "  1. Open Finder"
+echo "  2. Go to Applications (in your home folder)"
+echo "  3. Double-click 'MX Light'"
+echo "  4. Look for the lightbulb icon in your menu bar"
+echo "  5. Click the icon and select 'Configure...' to set your keyboard UUID"
+echo ""
+echo "Or run from Terminal:"
+echo "  open '$HOME/Applications/MX Light.app'"
 echo ""
 echo "For more information, see the README.md file."
 echo ""

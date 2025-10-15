@@ -6,10 +6,10 @@ let svc10000 = CBUUID(string: "00010000-0000-1000-8000-011F2000046D")
 let charCmd  = CBUUID(string: "00010001-0000-1000-8000-011F2000046D")
 
 struct Args {
-    var uuid: UUID
+    var uuid: UUID?
     var interval: TimeInterval
 }
-func promptForSettings() -> (uuid: UUID, interval: TimeInterval)? {
+func promptForSettings(currentUUID: UUID? = nil, currentInterval: TimeInterval = 6.5) -> (uuid: UUID, interval: TimeInterval)? {
     let alert = NSAlert()
     alert.messageText = "Logitech MX Mechanical Mini - Configuration"
     alert.informativeText = "Please enter the UUID of your Logitech MX Mechanical Mini keyboard and the refresh interval.\n\nYou can find the UUID using LightBlue or similar Bluetooth scanning app:"
@@ -26,6 +26,9 @@ func promptForSettings() -> (uuid: UUID, interval: TimeInterval)? {
 
     let uuidTextField = NSTextField(frame: NSRect(x: 0, y: 24, width: 300, height: 24))
     uuidTextField.placeholderString = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    if let uuid = currentUUID {
+        uuidTextField.stringValue = uuid.uuidString
+    }
     containerView.addSubview(uuidTextField)
 
     // Interval Field
@@ -35,7 +38,7 @@ func promptForSettings() -> (uuid: UUID, interval: TimeInterval)? {
 
     let intervalTextField = NSTextField(frame: NSRect(x: 220, y: 0, width: 80, height: 24))
     intervalTextField.placeholderString = "6.5"
-    intervalTextField.stringValue = "6.5"
+    intervalTextField.stringValue = "\(currentInterval)"
     containerView.addSubview(intervalTextField)
 
     alert.accessoryView = containerView
@@ -76,7 +79,7 @@ func promptForSettings() -> (uuid: UUID, interval: TimeInterval)? {
     return nil
 }
 
-func parseArgs() -> Args? {
+func parseArgs() -> Args {
     var u: UUID? = nil
     var interval: TimeInterval = 6.5
     var i = 1
@@ -90,47 +93,87 @@ func parseArgs() -> Args? {
         i += 1
     }
 
-    // If UUID is not provided via argument, show GUI prompt
-    if u == nil {
-        guard let settings = promptForSettings() else { return nil }
-        u = settings.uuid
-        interval = settings.interval
-    }
-
-    guard let uu = u else { return nil }
-    return Args(uuid: uu, interval: interval)
+    return Args(uuid: u, interval: interval)
 }
 
 final class App: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, NSApplicationDelegate {
     private var central: CBCentralManager!
-    private var targetUUID: UUID
+    private var targetUUID: UUID?
     private var periph: CBPeripheral?
     private var cmdChar: CBCharacteristic?
     private var statusItem: NSStatusItem?
     private var timer: Timer?
     private var refreshInterval: TimeInterval
+    private var isConfigured: Bool { targetUUID != nil }
 
-    init(uuid: UUID, interval: TimeInterval) {
-        self.targetUUID = uuid
-        self.refreshInterval = interval
+    private let defaults = UserDefaults.standard
+    private let uuidKey = "com.mxlight.device.uuid"
+    private let intervalKey = "com.mxlight.refresh.interval"
+
+    init(uuid: UUID?, interval: TimeInterval) {
+        // Try to load saved settings first
+        if uuid == nil {
+            if let savedUUIDString = defaults.string(forKey: uuidKey),
+               let savedUUID = UUID(uuidString: savedUUIDString) {
+                self.targetUUID = savedUUID
+                print("Loaded saved UUID: \(savedUUID)")
+            } else {
+                self.targetUUID = nil
+            }
+        } else {
+            self.targetUUID = uuid
+        }
+
+        // Load saved interval or use provided/default
+        let savedInterval = defaults.double(forKey: intervalKey)
+        self.refreshInterval = savedInterval > 0 ? savedInterval : interval
+
         super.init()
         self.setupMenuBar()
         self.central = CBCentralManager(delegate: self, queue: .main)
     }
 
+    private func saveSettings() {
+        if let uuid = targetUUID {
+            defaults.set(uuid.uuidString, forKey: uuidKey)
+        }
+        defaults.set(refreshInterval, forKey: intervalKey)
+        defaults.synchronize()
+        print("Settings saved")
+    }
+
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        updateMenuBarIcon()
+        updateMenuBarMenu()
+    }
 
+    private func updateMenuBarIcon() {
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "lightbulb.fill", accessibilityDescription: "MX Light")
+            let iconName = isConfigured ? "lightbulb.fill" : "lightbulb"
+            button.image = NSImage(systemSymbolName: iconName, accessibilityDescription: "MX Light")
             button.image?.isTemplate = true
         }
+    }
 
+    private func updateMenuBarMenu() {
         let menu = NSMenu()
 
-        let statusMenuItem = NSMenuItem(title: "MX Light Always On", action: nil, keyEquivalent: "")
-        statusMenuItem.isEnabled = false
-        menu.addItem(statusMenuItem)
+        if isConfigured {
+            let statusMenuItem = NSMenuItem(title: "MX Light Always On", action: nil, keyEquivalent: "")
+            statusMenuItem.isEnabled = false
+            menu.addItem(statusMenuItem)
+        } else {
+            let notConfiguredMenuItem = NSMenuItem(title: "Not Configured", action: nil, keyEquivalent: "")
+            notConfiguredMenuItem.isEnabled = false
+            menu.addItem(notConfiguredMenuItem)
+        }
+
+        menu.addItem(NSMenuItem.separator())
+
+        let configureMenuItem = NSMenuItem(title: "Configure...", action: #selector(showConfiguration), keyEquivalent: "")
+        configureMenuItem.target = self
+        menu.addItem(configureMenuItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -139,6 +182,34 @@ final class App: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, NSApp
         menu.addItem(quitMenuItem)
 
         statusItem?.menu = menu
+    }
+
+    @objc private func showConfiguration() {
+        guard let settings = promptForSettings(currentUUID: targetUUID, currentInterval: refreshInterval) else { return }
+
+        self.targetUUID = settings.uuid
+        self.refreshInterval = settings.interval
+
+        // Save settings
+        saveSettings()
+
+        // Reset timer if it was running
+        timer?.invalidate()
+        timer = nil
+
+        // Disconnect if connected
+        if let peripheral = periph {
+            central.cancelPeripheralConnection(peripheral)
+            periph = nil
+            cmdChar = nil
+        }
+
+        // Update menu and icon
+        updateMenuBarIcon()
+        updateMenuBarMenu()
+
+        // Reconnect with new UUID
+        centralManagerDidUpdateState(central)
     }
 
     @objc private func quitApp() {
@@ -153,18 +224,21 @@ final class App: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, NSApp
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            let arr = central.retrievePeripherals(withIdentifiers: [targetUUID])
+            guard let uuid = targetUUID else {
+                print("No UUID configured. Click the menu bar icon and select 'Configure...'")
+                return
+            }
+
+            let arr = central.retrievePeripherals(withIdentifiers: [uuid])
             if let p = arr.first {
                 self.periph = p
                 p.delegate = self
                 central.connect(p, options: nil)
             } else {
-                fputs("Device with UUID \(targetUUID) not found\n", stderr)
-                CFRunLoopStop(CFRunLoopGetMain())
+                fputs("Device with UUID \(uuid) not found\n", stderr)
             }
         default:
             fputs("Bluetooth not ready: \(central.state.rawValue)\n", stderr)
-            CFRunLoopStop(CFRunLoopGetMain())
         }
     }
 
@@ -217,7 +291,7 @@ final class App: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, NSApp
     }
 
     private func updateMenuBarStatus(success: Bool) {
-        if let menu = statusItem?.menu {
+        if let menu = statusItem?.menu, isConfigured {
             if let statusMenuItem = menu.items.first {
                 statusMenuItem.title = success ? "MX Light Always On ✓" : "MX Light Always On ✗"
             }
@@ -239,22 +313,7 @@ final class App: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate, NSApp
 
 NSApplication.shared.setActivationPolicy(.accessory)
 
-if let args = parseArgs() {
-    let app = App(uuid: args.uuid, interval: args.interval)
-    NSApplication.shared.delegate = app
-    NSApplication.shared.run()
-} else {
-    print("""
-    Usage:
-      swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth -framework Cocoa
-      ./mxlight [--uuid <UUID from LightBlue>] [--interval <seconds>]
-
-    Notes:
-      - This program turns the keyboard light ON and keeps it on.
-      - If UUID is not provided via --uuid, a dialog will appear to enter it and configure the refresh interval.
-      - Default refresh interval is 6.5 seconds (recommended).
-      - You can find the UUID using LightBlue or similar Bluetooth scanning app.
-      - Recommended to quit Logi Options+ first. If connection fails, you can "disconnect" the keyboard in system Bluetooth settings or switch to an idle slot, then run again.
-      - A menu bar icon will appear. Click it to quit the application.
-    """)
-}
+let args = parseArgs()
+let app = App(uuid: args.uuid, interval: args.interval)
+NSApplication.shared.delegate = app
+NSApplication.shared.run()

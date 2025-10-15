@@ -2,11 +2,21 @@
 
 Keep your **Logitech MX Mechanical Mini** keyboard backlight always on via Bluetooth Low Energy on macOS.
 
-The app runs in the background with a **menu bar icon** (lightbulb 💡) that allows you to quit the application.
+The app runs in the background with a **menu bar icon** (lightbulb) that allows you to configure settings and quit the application.
+
+## Features
+
+- Keep keyboard backlight always on
+- Automatically saves your configuration (UUID and refresh interval)
+- Visual feedback with menu bar icon (filled when configured, empty when not)
+- Configurable refresh interval (default: 6.5 seconds)
+- Automatically reconnects after configuration changes
+- Easy installation with automated script
 
 ## Prerequisites
 
-- macOS with Xcode Command Line Tools:
+- macOS 10.15 or later
+- Xcode Command Line Tools:
   ```bash
   xcode-select --install
   ```
@@ -14,108 +24,193 @@ The app runs in the background with a **menu bar icon** (lightbulb 💡) that al
 
 ## Get Device UUID
 
-1. Open **LightBlue** and connect to your keyboard (MX MCHNCL M / MX Mechanical)
-2. Copy the **Peripheral Identifier** (e.g., `44B8F2E2-ED97-6227-6712-A41AC332C9D8`)
+1. Download and open **LightBlue** from the Mac App Store
+2. Connect to your keyboard (look for "MX MCHNCL M" or "MX Mechanical")
+3. Copy the **Peripheral Identifier** at the top
+   - Example: `44B8F2E2-ED97-6227-6712-A41AC332C9D8`
+4. You'll need this UUID to configure the app
 
-## Quick Install (Recommended)
+## Installation
+
+### Quick Install (Recommended)
 
 Run the automated installer:
 
 ```bash
-chmod +x install.sh
 ./install.sh
 ```
 
 The installer will:
-1. Compile the application
-2. Install it to `~/Applications/mxlight.app`
-3. Optionally configure it to start automatically at login
+1. Compile the application from source
+2. Create a proper macOS app bundle structure
+3. Generate the required `Info.plist` file
+4. Install to `~/Applications/MX Light.app`
+5. Remove quarantine attributes to allow the app to run
+6. Set proper permissions
 
-## Manual Build
+After installation completes, you can:
+- Open from Finder: Go to `Applications` folder (in your home directory) → Double-click `MX Light`
+- Open from Terminal: `open ~/Applications/MX\ Light.app`
+
+### Manual Build
 
 If you prefer to build manually:
 
 ```bash
 swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth -framework Cocoa
-```
-
-## Run
-
-Simply execute the program - a dialog will appear to configure the UUID and refresh interval:
-
-```bash
 ./mxlight
 ```
 
-Or pass parameters directly via command line:
+**Note:** Manual builds won't have the app bundle structure and may require additional permissions setup.
+
+## Configuration
+
+### First Time Setup
+
+1. Launch the app - you'll see a **lightbulb icon** (empty/outline) in the menu bar
+2. Click the icon and select **"Configure..."**
+3. Enter your keyboard's UUID and refresh interval:
+   - **Device UUID**: The identifier you copied from LightBlue
+   - **Refresh Interval**: How often to send the "keep light on" command (default: 6.5 seconds)
+4. Click **"OK"** to save
+
+Your settings are automatically saved and will be restored when you restart the app.
+
+### Menu Bar Icon States
+
+- **Empty lightbulb**: Not configured
+- **Filled lightbulb**: Configured and ready
+- **Checkmark** in menu: Successfully keeping light on
+- **X mark** in menu: Connection error
+
+### Reconfiguring
+
+You can change settings anytime:
+1. Click the lightbulb icon
+2. Select **"Configure..."**
+3. Your current settings will be pre-filled
+4. Make changes and click **"OK"**
+
+The app will automatically reconnect with the new settings.
+
+## How It Works
+
+Once configured, the application:
+- Connects to your keyboard via Bluetooth using the UUID
+- Sends a "turn light ON" command immediately
+- Automatically resends the command at your specified interval
+- Keeps the backlight on even if the keyboard tries to auto-dim
+- Remembers your settings between app restarts
+- Runs quietly in the background (no Dock icon)
+
+### Refresh Interval Recommendations
+
+Choose the interval based on your keyboard's power source:
+
+- **6.5 seconds** (default): Recommended when running on **battery**
+  - Optimal balance between responsiveness and battery life
+  - Light stays consistently on without frequent dimming
+
+- **280 seconds** (approximately 4.7 minutes): Recommended when **plugged into power**
+  - Conserves Bluetooth bandwidth
+  - Reduces unnecessary communication overhead
+  - Still ensures light stays on without manual intervention
+
+**Other options:**
+- **3-5 seconds**: More responsive on battery, but higher battery usage
+- **10-60 seconds**: More battery-friendly, light may dim briefly before refreshing
+
+**Minimum:** 1.0 second
+
+## Command Line Usage
+
+You can also run with parameters (skips configuration dialog):
 
 ```bash
-./mxlight --uuid 44B8F2E2-ED97-6227-6712-A41AC332C9D8 --interval 6.5
+./mxlight --uuid 44B8F2E2-ED97-6227-6712-A41AC332C9D8 --interval 6.5 
 ```
 
-### Configuration Dialog
+## Auto-Start at Login (Optional)
 
-When you run the program without arguments, a dialog will appear asking for:
+To launch the app automatically when you log in:
 
-1. **Device UUID**: The unique identifier of your keyboard (find it using LightBlue)
-2. **Refresh Interval**: How often to send the "keep light on" command (default: 6.5 seconds)
-   - Recommended: **6.5 seconds** (optimal balance between responsiveness and battery life)
-   - Minimum: 1.0 second
+1. Open **System Settings** → **General** → **Login Items**
+2. Click the **+** button under "Open at Login"
+3. Navigate to `~/Applications/` and select **MX Light**
+4. Done! The app will start automatically on login
 
-### How It Works
-
-The application will:
-- Show a **lightbulb icon** in the menu bar (near the clock)
-- Send a "turn light ON" command immediately upon connection
-- **Automatically resend** the command at your specified interval to keep the light always on
-- Display a checkmark (✓) when the light is successfully turned on
-- Keep running in the background to maintain the light on
-- Allow you to quit by clicking the icon and selecting "Quit"
-
-The periodic refresh ensures the keyboard backlight stays on even if the keyboard tries to turn it off automatically.
-
-## Run as Background Service (LaunchAgent)
-
-To keep the light always on, even after sleep/wake and system restarts:
-
-1. **Edit the plist file** with your keyboard's UUID and desired interval:
-   ```bash
-   nano com.mxlight.always-on.plist
-   ```
-   Update line 12 with your UUID.
-   Optionally, add `<string>--interval</string>` and `<string>6.5</string>` to customize the refresh interval.
-
-2. **Copy the compiled binary**:
-   ```bash
-   sudo mkdir -p /Applications/mxlight.app/Contents/MacOS
-   sudo cp mxlight /Applications/mxlight.app/Contents/MacOS/
-   ```
-
-3. **Install the LaunchAgent**:
-   ```bash
-   cp com.mxlight.always-on.plist ~/Library/LaunchAgents/
-   launchctl load ~/Library/LaunchAgents/com.mxlight.always-on.plist
-   ```
-
-4. **Check logs** (if needed):
-   ```bash
-   tail -f /tmp/mxlight.out.log
-   tail -f /tmp/mxlight.err.log
-   ```
-
-### Uninstall Background Service
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.mxlight.always-on.plist
-rm ~/Library/LaunchAgents/com.mxlight.always-on.plist
-```
+To remove auto-start, simply remove it from Login Items in System Settings.
 
 ## Troubleshooting
 
-- **Cannot connect**: Quit **Logi Options+** first, or disconnect the keyboard in system Bluetooth settings
-- **Permission required**: Grant Bluetooth permission when prompted on first run
-- **Menu bar icon not visible**: Check if the app is running - it should show a lightbulb icon near the clock
-- **To quit the app**: Click the lightbulb icon in the menu bar and select "Quit"
+### App won't connect to keyboard
+
+- **Quit Logi Options+**: The official app may hold the Bluetooth connection
+- **Disconnect in Bluetooth settings**: Go to System Settings → Bluetooth → Disconnect keyboard, then reconnect
+- **Verify UUID**: Make sure you copied the correct UUID from LightBlue
+- **Check Bluetooth**: Ensure Bluetooth is enabled and the keyboard is paired
+
+### Permission issues
+
+- **Bluetooth permission**: Grant permission when prompted on first run
+- **App won't open**: Make sure Xcode Command Line Tools are installed
+- **"Damaged or incomplete" error**: Run `./install.sh` again - it removes quarantine attributes
+
+### Menu bar icon issues
+
+- **Icon not visible**: Check if app is running in Activity Monitor
+- **Empty lightbulb**: Click icon and select Configure... to set up your UUID
+- **X mark showing**: Check connection, try reconfiguring
+
+### General tips
+
+- The app needs to stay running to keep the light on
+- Quit the app by clicking the icon and selecting Quit
+- Logs are printed to Terminal if you run the app from command line
+
+## Uninstall
+
+### Using the uninstaller script:
+
+```bash
+./uninstall.sh
+```
+
+### Manual removal:
+
+```bash
+rm -rf ~/Applications/MX\ Light.app
+```
+
+**Don't forget:** If you added the app to Login Items, remove it from System Settings.
+
+## Technical Details
+
+### What the installer does
+
+The `install.sh` script:
+1. Compiles Swift source code with optimization (`-O`)
+2. Creates proper macOS app bundle structure (`MX Light.app/Contents/MacOS/`)
+3. Generates `Info.plist` with:
+   - Bundle identifier: `com.mxlight.always-on`
+   - Bluetooth permission description
+   - LSUIElement flag (runs without Dock icon)
+4. Removes quarantine attribute (`xattr -cr`) to bypass Gatekeeper warnings
+
+### Security note
+
+Removing quarantine is **safe** because:
+- You're compiling from visible source code
+- The code is open-source and auditable
+- It's your own app, not downloaded from an unknown source
+
+For distribution, you'd need an Apple Developer account to code-sign the app.
+
+### Data storage
+
+Configuration is stored in macOS UserDefaults:
+- Key: `com.mxlight.device.uuid` - Your keyboard's UUID
+- Key: `com.mxlight.refresh.interval` - Refresh interval in seconds
 
 ## Acknowledgments
 
@@ -124,4 +219,3 @@ Special thanks to [@rosickey](https://github.com/rosickey) for creating the orig
 ## License
 
 MIT
-
