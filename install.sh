@@ -46,6 +46,11 @@ mkdir -p "$RESOURCES_PATH"
 cp mxlight "$MACOS_PATH/$APP_NAME"
 chmod +x "$MACOS_PATH/$APP_NAME"
 
+# Copy icon if it exists
+if [ -f "AppIcon.icns" ]; then
+    cp AppIcon.icns "$RESOURCES_PATH/"
+fi
+
 # Create Info.plist
 cat > "$CONTENTS_PATH/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,6 +75,8 @@ cat > "$CONTENTS_PATH/Info.plist" << EOF
     <string>10.15</string>
     <key>LSUIElement</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2025</string>
     <key>NSBluetoothAlwaysUsageDescription</key>
