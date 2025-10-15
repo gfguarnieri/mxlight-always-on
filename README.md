@@ -17,7 +17,23 @@ The app runs in the background with a **menu bar icon** (lightbulb 💡) that al
 1. Open **LightBlue** and connect to your keyboard (MX MCHNCL M / MX Mechanical)
 2. Copy the **Peripheral Identifier** (e.g., `44B8F2E2-ED97-6227-6712-A41AC332C9D8`)
 
-## Build
+## Quick Install (Recommended)
+
+Run the automated installer:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+The installer will:
+1. Compile the application
+2. Install it to `~/Applications/mxlight.app`
+3. Optionally configure it to start automatically at login
+
+## Manual Build
+
+If you prefer to build manually:
 
 ```bash
 swiftc -O -o mxlight mxlight.swift -framework CoreBluetooth -framework Cocoa
